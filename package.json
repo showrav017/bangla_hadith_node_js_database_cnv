@@ -1,0 +1,22 @@
+{
+  "name": "bangla_hadith",
+  "version": "1.0.0",
+  "description": "https://github.com/showrav017/bangla_hadith_node_js_database_cnv.git",
+  "main": "index.js",
+  "dependencies": {
+    "sqlite3": "^3.1.6",
+    "mysql": "^2.11.1",
+    "html-entities": "^1.2.0",
+    "striptags": "^2.1.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/showrav017/bangla_hadith_node_js_database_cnv.git"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
