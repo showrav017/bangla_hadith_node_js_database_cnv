@@ -29,7 +29,8 @@ db.serialize(function() {
 	db.run('CREATE TABLE "android_metadata" ("locale" TEXT);INSERT INTO android_metadata VALUES("en_US");');
 	
 	db.run('INSERT INTO android_metadata VALUES("en_US");');
-	
+
+    /*
 	db.run('CREATE VIRTUAL TABLE "hadithbook"  USING fts4("id" INTEGER,"nameEnglish" VARCHAR,"nameBengali" VARCHAR,"lastUpdate" VARCHAR,"isActive" INTEGER,"priority" INTEGER,"publisherId" INTEGER, "section_number" INTEGER, "hadith_number" INTEGER, PRIMARY KEY("id"));');
 	
 	db.run('CREATE VIRTUAL TABLE "hadithchapter"  USING fts4("id" INTEGER, "nameEnglish" VARCHAR,"nameBengali" VARCHAR, "nameArabic" VARCHAR, "lastUpdate" VARCHAR,"isActive" INTEGER,"bookId" INTEGER,"sectionId" INTEGER,"hadith_number" INTEGER, PRIMARY KEY( "id"));');
@@ -45,7 +46,26 @@ db.serialize(function() {
 	db.run('CREATE VIRTUAL TABLE "rabihadith"  USING fts4("sortBy" VARCHAR, "rabiEnglish" VARCHAR, "lastUpdate" VARCHAR, "rabiBengali" VARCHAR,"isActive" INTEGER,"id" INTEGER, PRIMARY KEY("id"));');
 	
 	db.run('CREATE VIRTUAL TABLE "hadithmain"  USING fts4("note" VARCHAR, "lastUpdate" VARCHAR, "hadithEnglish" VARCHAR, "hadithArabic" VARCHAR, "hadithBengali" VARCHAR, "checkStatus" INTEGER, "hadithNo" INTEGER, "id" INTEGER, "sequence" INTEGER, "isActive" INTEGER, "chapterId" INTEGER,"bookId" INTEGER, "publisherId" INTEGER, "rabiId" INTEGER,"sectionId" INTEGER, "statusId" INTEGER, PRIMARY KEY("id"));');
- 
+    */
+
+    db.run('CREATE TABLE "hadithbook" ("id" INTEGER,"nameEnglish" VARCHAR,"nameBengali" VARCHAR,"lastUpdate" VARCHAR,"isActive" INTEGER,"priority" INTEGER,"publisherId" INTEGER, "section_number" INTEGER, "hadith_number" INTEGER, PRIMARY KEY("id"));');
+
+    db.run('CREATE TABLE "hadithchapter" ("id" INTEGER, "nameEnglish" VARCHAR,"nameBengali" VARCHAR, "nameArabic" VARCHAR, "lastUpdate" VARCHAR,"isActive" INTEGER,"bookId" INTEGER,"sectionId" INTEGER,"hadith_number" INTEGER, PRIMARY KEY( "id"));');
+
+    db.run('CREATE TABLE "hadithsection" ("nameEnglish" VARCHAR,"nameBengali" VARCHAR,"lastUpdate" VARCHAR,"isActive" INTEGER,"id" INTEGER,"serial" INTEGER,"bookId" INTEGER, "hadith_number" INTEGER, "range_start" INTEGER, "range_end" INTEGER, PRIMARY KEY("id"));');
+
+    db.run('CREATE TABLE "hadithexplanation" ("explanation" VARCHAR,"lastUpdate" VARCHAR,"id" INTEGER,"isActive" INTEGER,"hadithId" INTEGER, PRIMARY KEY("id"));');
+
+    db.run('CREATE TABLE "hadithpublisher" ("nameEnglish" VARCHAR, "nameBengali" VARCHAR, "lastUpdate" VARCHAR, "isActive" INTEGER,"id" INTEGER, PRIMARY KEY("id"));');
+
+    db.run('CREATE TABLE "hadithstatus" ("colCode" VARCHAR,"statusEnglish" VARCHAR,"statusBengali" VARCHAR,"lastUpdate" VARCHAR,"isActive" INTEGER,"id" INTEGER, PRIMARY KEY("id"));');
+
+    db.run('CREATE TABLE "rabihadith" ("sortBy" VARCHAR, "rabiEnglish" VARCHAR, "lastUpdate" VARCHAR, "rabiBengali" VARCHAR,"isActive" INTEGER,"id" INTEGER, PRIMARY KEY("id"));');
+
+    db.run('CREATE TABLE "hadithmain" ("lastUpdate" VARCHAR, "checkStatus" INTEGER, "hadithNo" INTEGER, "id" INTEGER, "sequence" INTEGER, "isActive" INTEGER, "chapterId" INTEGER,"bookId" INTEGER, "publisherId" INTEGER, "rabiId" INTEGER,"sectionId" INTEGER, "statusId" INTEGER, PRIMARY KEY("id"));');
+
+    db.run('CREATE VIRTUAL TABLE "hadithmain_data"  USING fts4("bookId" INTEGER, "sectionId" INTEGER, "note" TEXT, "hadithEnglish" TEXT, "hadithArabic" TEXT, "hadithBengali" TEXT);');
+
 	 AddBook(function()
 	 {
 		 PrepareRangeQuaryFromBook(function(){
@@ -347,20 +367,20 @@ function AddMain(cb)
 	  
 		var II = 1;
 		
-		//db.run("BEGIN TRANSACTION");
+		db.run("BEGIN TRANSACTION");
 
 		rows.forEach(function(row){
 			//console.log(row);
 			
-			//db.run("INSERT INTO hadithbook(id,publisherId,nameBengali,nameEnglish,priority,isActive,lastUpdate,section_number,hadith_number) VALUES ("+row.BookID+",'"+row.PubID+"','"+striptags(entities.encode(row.BookNameBD))+"','"+striptags(entities.encode(row.BookNameEN))+"',"+row.priority+","+row.Active+",'"+row.lastUpdate+"','0','0')");
-			
-			db.run("INSERT INTO hadithmain(id,sequence,note,lastUpdate,isActive,statusId,checkStatus,rabiId,bookId,publisherId,chapterId,hadithEnglish,sectionId,hadithNo,hadithArabic,hadithBengali) VALUES ("+row.HadithID+","+II+",'"+striptags(entities.encode(row.HadithNote+""))+"','"+row.DateUpdate+"',"+row.HadithActive+",'"+row.HadithStatus+"','"+row.CheckStatus+"','"+row.RabiID+"','"+row.BookID+"','"+row.SourceID+"','"+row.chapterID+"','"+striptags(entities.encode(row.EnglishHadith+""))+"','"+row.SectionID+"','"+row.HadithNo+"','"+striptags(entities.encode(row.ArabicHadith+""))+"','"+striptags(entities.encode(row.BanglaHadith+""))+"')");
+			//db.run("INSERT INTO hadithmain(id,sequence,note,lastUpdate,isActive,statusId,checkStatus,rabiId,bookId,publisherId,chapterId,hadithEnglish,sectionId,hadithNo,hadithArabic,hadithBengali) VALUES ("+row.HadithID+","+II+",'"+striptags(entities.encode(row.HadithNote+""))+"','"+row.DateUpdate+"',"+row.HadithActive+",'"+row.HadithStatus+"','"+row.CheckStatus+"','"+row.RabiID+"','"+row.BookID+"','"+row.SourceID+"','"+row.chapterID+"','"+striptags(entities.encode(row.EnglishHadith+""))+"','"+row.SectionID+"','"+row.HadithNo+"','"+striptags(entities.encode(row.ArabicHadith+""))+"','"+striptags(entities.encode(row.BanglaHadith+""))+"')");
+
+            db.run("INSERT INTO hadithmain (id,sequence,lastUpdate,isActive,statusId,checkStatus,rabiId,bookId,publisherId,chapterId,sectionId,hadithNo) VALUES ("+row.HadithID+","+II+", '"+row.DateUpdate+"',"+row.HadithActive+",'"+row.HadithStatus+"','"+row.CheckStatus+"','"+row.RabiID+"','"+row.BookID+"','"+row.SourceID+"','"+row.chapterID+"','"+row.SectionID+"','"+row.HadithNo+"')");
+
+            db.run("INSERT INTO hadithmain_data (docid, bookId, sectionId, note, hadithEnglish, hadithArabic, hadithBengali) VALUES ("+row.HadithID+", '"+row.BookID+"', '"+row.SectionID+"', '"+striptags(entities.encode(row.HadithNote+""))+"', '"+striptags(entities.encode(row.EnglishHadith+""))+"',  '"+striptags(entities.encode(row.ArabicHadith+""))+"', '"+striptags(entities.encode(row.BanglaHadith+""))+"')");
 			
 			if(II == rows.length)
-			{		
-				
-		
-				//db.run("END TRANSACTION");
+			{
+				db.run("END TRANSACTION");
 				cb();
 			}
 			
@@ -369,8 +389,6 @@ function AddMain(cb)
 	  
 	  //console.log('The solution is: ', rows[0]);
 	 });
-	
-	
 }
  
 //db.close();
