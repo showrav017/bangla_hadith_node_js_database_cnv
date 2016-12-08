@@ -109,7 +109,7 @@ function AddSura(cb)
 
         rows.forEach(function(row){
 
-            db.run('INSERT INTO "sura" ("has_bismillah", "id", "name_ar", "name_bn", "name_en", "no_of_vers", "position", "type") VALUES ("'+row.hasBismillah+'", "'+row.suraID+'", "'+striptags(entities.encode(row.suraNameAR+""))+'", "'+striptags(entities.encode(row.suraNameEN+""))+'", "'+striptags(entities.encode(row.suraNameBN+""))+'", "'+row.totalVers+'", "'+row.suraNo+'", "'+row.suraType+'")', function () {
+            db.run('INSERT INTO "sura" ("has_bismillah", "id", "name_ar", "name_en", "name_bn", "no_of_vers", "position", "type") VALUES ("'+row.hasBismillah+'", "'+row.suraID+'", "'+striptags(entities.encode(row.suraNameAR+""))+'", "'+striptags(entities.encode(row.suraNameEN+""))+'", "'+striptags(entities.encode(row.suraNameBN+""))+'", "'+row.totalVers+'", "'+row.suraNo+'", "'+row.suraType+'")', function () {
 
                 console.log("Current ROW: "+io+" out of "+rows.length+" Rows")
 
