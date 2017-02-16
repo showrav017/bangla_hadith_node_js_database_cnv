@@ -5,7 +5,7 @@ const chalk = require('chalk');
 
 console.log('Initiated');
 
-var book_info = new sqlite3.Database('output/book_info.tar');
+//var book_info = new sqlite3.Database('output/book_info.tar');
 var striptags = require('striptags');
 var Entities = require('html-entities').XmlEntities;
 entities = new Entities();
@@ -37,27 +37,57 @@ switch (cl_arguments[0]) {
         showHelp();
 }*/
 
-generateBooksTable(function()
+/*generateBooksTable(function()
 {
     generateBooksCategoryTable(function()
     {
         book_info.close();
         MySqlConn.end();
     })
-});
+});*/
 
-
-
-function singleBookdb_hb(id)
+singleBookdb_hb(2, function(hb_book)
 {
-    var hb_book = new sqlite3.Database('output/hb_'+hb_book+'.tar');
+    hb_book.close();
+    MySqlConn.end();
+})
+
+
+function singleBookdb_hb(id, cb)
+{
+    var hb_book = new sqlite3.Database('output/hb_'+id+'.tar');
 
     hb_book.serialize(function()
     {
-        book_info.run('CREATE TABLE IF NOT EXISTS "android_metadata" ("locale" TEXT);INSERT INTO android_metadata VALUES("en_US");');
-        book_info.run('INSERT INTO android_metadata VALUES("en_US");');
+        hb_book.run('CREATE TABLE IF NOT EXISTS "android_metadata" ("locale" TEXT);INSERT INTO android_metadata VALUES("en_US");');
+        hb_book.run('INSERT INTO android_metadata VALUES("en_US");');
+        hb_book.run('DROP TABLE IF EXISTS `section`;');
+        hb_book.run('CREATE TABLE section ("id" INTEGER, "serial" INTEGER, "nameEnglish" VARCHAR,"nameBengali" VARCHAR, "hadith_number" INTEGER, "range_start" INTEGER, "range_end" INTEGER, PRIMARY KEY("id"));');
 
-        
+        MySqlConn.query("SELECT hadithsection.SectionID AS id, hadithsection.serial, hadithsection.SectionBD AS nameBengali, hadithsection.SectionEN AS nameEnglish, ( SELECT COUNT(*) FROM hadithmain WHERE hadithmain.SectionID = hadithsection.SectionID ) AS hadith_number, ( SELECT min(hadithmain.HadithNo) FROM hadithmain WHERE hadithmain.SectionID = hadithsection.SectionID AND hadithmain.BookID = "+id+" ) AS range_start, ( SELECT max(hadithmain.HadithNo) FROM hadithmain WHERE hadithmain.SectionID = hadithsection.SectionID AND hadithmain.BookID = "+id+" ) AS range_end FROM hadithsection WHERE hadithsection.BookID = "+id+" AND hadithsection.SecActive = 1", function(err, rows, fields1) {
+            if (err) throw err;
+
+            var io = 1;
+
+            if(rows.length==0)
+            {
+                console.log("No Section Under This ID")
+                cb(hb_book);
+            }
+
+            rows.forEach(function(row){
+
+                hb_book.run("INSERT INTO section ('id', 'serial', 'nameEnglish', 'nameBengali', 'hadith_number', 'range_start', 'range_end') VALUES ("+row.id+", "+row.serial+", '"+striptags(entities.encode(row.nameEnglish+""))+"', '"+striptags(entities.encode(row.nameBengali+""))+"', "+row.hadith_number+", "+row.range_start+", "+row.range_end+");");
+
+                console.log(io+" < section table for  > "+rows.length)
+
+                if(io == rows.length)
+                {
+                    cb(hb_book);
+                }
+                io = io + 1;
+            })
+        });
     })
 }
 
