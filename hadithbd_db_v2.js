@@ -46,15 +46,28 @@ switch (cl_arguments[0]) {
     })
 });*/
 
-singleBookDb_hb_section(2, function(book_id, hb_book)
+/*singleBookDb_hb_section(1, function(book_id, hb_book)
 {
     singleBookDb_hb_chapter(book_id, hb_book, function (book_id, hb_book)
     {
-        hb_book.close();
-        MySqlConn.end();
-    });
-})
+        singleBookDb_hb_explanation(book_id, hb_book, function (id, hb_book)
+        {
+            singleBookDb_hb_content(book_id, hb_book, function (id, hb_book)
+            {
 
+                hb_book.close();
+                MySqlConn.end();
+
+            })
+        })
+    });
+})*/
+
+singleBookDb_hb_content(1, function(book_id, hb_book)
+{
+    hb_book.close();
+    MySqlConn.end();
+})
 
 function singleBookDb_hb_section(id, cb)
 {
@@ -72,7 +85,15 @@ function singleBookDb_hb_section(id, cb)
         hb_book.run('CREATE TABLE "chapter" ("id" INTEGER, "nameEnglish" VARCHAR,"nameBengali" VARCHAR, "nameArabic" VARCHAR, "sectionId" INTEGER,"hadith_number" INTEGER, PRIMARY KEY("id"));');
 
         hb_book.run('DROP TABLE IF EXISTS `explanation`;');
-        hb_book.run('CREATE TABLE "explanation" ("id" INTEGER, INTEGER,"hadithId" INTEGER, "explanation" TEXT, PRIMARY KEY("id"));');
+        hb_book.run('CREATE TABLE "explanation" ("id" INTEGER, "hadithId" INTEGER, "explanation" TEXT, PRIMARY KEY("id"));');
+
+        hb_book.run('DROP TABLE IF EXISTS `content`;');
+        hb_book.run('CREATE TABLE `content` ("id" INTEGER, "sequence" INTEGER, "statusId" INTEGER, "if_cross_checked" INTEGER, "chapterId" INTEGER, "sectionId" INTEGER, "hadithNo" INTEGER, PRIMARY KEY("id"));');
+
+
+        hb_book.run('DROP TABLE IF EXISTS `content_fts`;');
+        hb_book.run('CREATE VIRTUAL TABLE "content_fts" USING fts4 ("hadithBengali" TEXT,"hadithEnglish" TEXT,"hadithArabic" TEXT,"note" TEXT,"rabiNameBangla" TEXT,"rabiNameEnglish" TEXT,"publisherNameEnglish" TEXT,"publisherNameBangla" TEXT,"status_bn" TEXT,"status_en" TEXT);');
+
 
         MySqlConn.query("SELECT hadithsection.SectionID AS id, hadithsection.serial, hadithsection.SectionBD AS nameBengali, hadithsection.SectionEN AS nameEnglish, ( SELECT COUNT(*) FROM hadithmain WHERE hadithmain.SectionID = hadithsection.SectionID ) AS hadith_number, ( SELECT min(hadithmain.HadithNo) FROM hadithmain WHERE hadithmain.SectionID = hadithsection.SectionID AND hadithmain.BookID = "+id+" ) AS range_start, ( SELECT max(hadithmain.HadithNo) FROM hadithmain WHERE hadithmain.SectionID = hadithsection.SectionID AND hadithmain.BookID = "+id+" ) AS range_end FROM hadithsection WHERE hadithsection.BookID = "+id+" AND hadithsection.SecActive = 1", function(err, rows, fields1) {
             if (err) throw err;
@@ -101,8 +122,10 @@ function singleBookDb_hb_section(id, cb)
     })
 }
 
-function singleBookDb_hb_chapter(id, hb_book, cb)
+function singleBookDb_hb_chapter(id, cb)
 {
+    var hb_book = new sqlite3.Database('output/hb_'+id+'.tar');
+
     hb_book.serialize(function() {
 
         MySqlConn.query("SELECT hadithchapter.chapID AS id, IFNULL(hadithchapter.ChapterBG, "+'"'+""+'"'+") AS nameBengali, IFNULL(hadithchapter.ChapterEN, "+'"'+""+'"'+") AS nameEnglish, IFNULL(hadithchapter.ChapterAR, "+'"'+""+'"'+") AS nameArabic, IFNULL(hadithchapter.SectionID, "+'"'+""+'"'+") AS sectionId, ( SELECT COUNT(*) FROM hadithmain WHERE hadithmain.chapterID = hadithchapter.chapID ) AS hadith_number FROM hadithchapter WHERE hadithchapter.StatusActive = 1 AND hadithchapter.BookID = "+id, function(err, rows, fields1) {
@@ -134,27 +157,29 @@ function singleBookDb_hb_chapter(id, hb_book, cb)
 }
 
 
-function singleBookDb_hb_explanation(id, hb_book, cb)
+function singleBookDb_hb_explanation(id, cb)
 {
+    var hb_book = new sqlite3.Database('output/hb_'+id+'.tar');
+
     hb_book.serialize(function()
     {
 
-        MySqlConn.query("SELECT hadithchapter.chapID AS id, IFNULL(hadithchapter.ChapterBG, "+'"'+""+'"'+") AS nameBengali, IFNULL(hadithchapter.ChapterEN, "+'"'+""+'"'+") AS nameEnglish, IFNULL(hadithchapter.ChapterAR, "+'"'+""+'"'+") AS nameArabic, IFNULL(hadithchapter.SectionID, "+'"'+""+'"'+") AS sectionId, ( SELECT COUNT(*) FROM hadithmain WHERE hadithmain.chapterID = hadithchapter.chapID ) AS hadith_number FROM hadithchapter WHERE hadithchapter.StatusActive = 1 AND hadithchapter.BookID = "+id, function(err, rows, fields1) {
+        MySqlConn.query("SELECT hadithexplanation.expID AS id, hadithexplanation.hadithID AS hadithId, hadithexplanation.explanation AS explanation FROM `hadithexplanation` WHERE hadithexplanation.active = 1 AND FIND_IN_SET( hadithexplanation.hadithID, ( SELECT GROUP_CONCAT( hadithmain.HadithID SEPARATOR ',' ) AS hadithIDList FROM hadithmain WHERE hadithmain.BookID = "+id+" ))", function(err, rows, fields1) {
             if (err) throw err;
 
             var io = 1;
 
             if(rows.length==0)
             {
-                console.log("No Chapter Under This ID")
+                console.log("No explanation Under This ID")
                 cb(id, hb_book);
             }
 
             rows.forEach(function(row){
 
-                hb_book.run("INSERT INTO chapter ('id', 'nameEnglish', 'nameBengali', 'nameArabic', 'sectionId', 'hadith_number') VALUES ("+row.id+", '"+striptags(entities.encode(row.nameEnglish))+"', '"+striptags(entities.encode(row.nameBengali+""))+"', '"+striptags(entities.encode(row.nameArabic+""))+"', "+row.sectionId+", "+row.hadith_number+");");
+                hb_book.run("INSERT INTO explanation (id,hadithId,explanation) VALUES ("+row.id+","+row.hadithId+",'"+striptags(entities.encode(row.explanation+""))+"')");
 
-                console.log(io+" < chapter table for  > "+rows.length)
+                console.log(io+" < explanation table for  > "+rows.length)
 
                 if(io == rows.length)
                 {
@@ -167,7 +192,42 @@ function singleBookDb_hb_explanation(id, hb_book, cb)
     });
 }
 
+function singleBookDb_hb_content(id, cb)
+{
+    var hb_book = new sqlite3.Database('output/hb_'+id+'.tar');
 
+    hb_book.serialize(function()
+    {
+
+        MySqlConn.query("SELECT hadithmain.HadithID AS id, (@cnt := @cnt + 1) AS sequence, hadithmain.HadithStatus AS statusId, hadithmain.CheckStatus AS if_cross_checked, hadithmain.chapterID AS chapterId, hadithmain.SectionID AS sectionId, hadithmain.HadithNo AS hadithNo, hadithmain.BanglaHadith AS hadithBengali, hadithmain.EnglishHadith AS hadithEnglish, hadithmain.ArabicHadith AS hadithArabic, hadithmain.HadithNote AS note, ( SELECT rabihadith.rabiBangla FROM rabihadith WHERE rabihadith.rabiID = hadithmain.RabiID ) AS rabiNameBangla, ( SELECT rabihadith.rabiEnglish FROM rabihadith WHERE rabihadith.rabiID = hadithmain.RabiID ) AS rabiNameEnglish, ( SELECT hadithsource.SourceNameEN FROM hadithsource WHERE hadithsource.SourceID = hadithmain.SourceID ) AS publisherNameEnglish, ( SELECT hadithsource.SourceNameBD FROM hadithsource WHERE hadithsource.SourceID = hadithmain.SourceID ) AS publisherNameBangla, ( SELECT hadithstatus.StatusBG FROM hadithstatus WHERE hadithstatus.StatusID = hadithmain.HadithStatus ) AS status_bn, ( SELECT hadithstatus.StatusEN FROM hadithstatus WHERE hadithstatus.StatusID = hadithmain.HadithStatus ) AS status_en FROM `hadithmain` CROSS JOIN (SELECT @cnt := 0) AS dummy WHERE hadithmain.HadithActive = 1 AND hadithmain.BookID = "+id+" ORDER BY SectionID ASC", function(err, rows, fields1) {
+            if (err) throw err;
+
+            var io = 1;
+
+            if(rows.length==0)
+            {
+                console.log("No contents Under This ID")
+                cb(id, hb_book);
+            }
+
+            rows.forEach(function(row){
+
+                hb_book.run("INSERT INTO content (id,sequence,statusId,if_cross_checked,chapterId,sectionId,hadithNo) VALUES ("+row.id+","+row.sequence+","+row.statusId+","+row.if_cross_checked+","+row.chapterId+","+row.sectionId+","+row.hadithNo+")");
+
+                hb_book.run("INSERT INTO content_fts (docid, hadithBengali, hadithEnglish, hadithArabic, note, rabiNameBangla, rabiNameEnglish, publisherNameEnglish, publisherNameBangla, status_bn, status_en) VALUES ("+row.id+", '"+striptags(entities.encode(row.hadithBengali+""))+"', '"+striptags(entities.encode(row.hadithEnglish+""))+"', '"+striptags(entities.encode(row.hadithArabic+""))+"', '"+striptags(entities.encode(row.note+""))+"', '"+striptags(entities.encode(row.rabiNameBangla+""))+"', '"+striptags(entities.encode(row.rabiNameEnglish+""))+"', '"+striptags(entities.encode(row.publisherNameEnglish+""))+"', '"+striptags(entities.encode(row.publisherNameBangla+""))+"', '"+striptags(entities.encode(row.status_bn+""))+"', '"+striptags(entities.encode(row.status_en+""))+"')");
+
+                console.log(io+" < contents table for  > "+rows.length)
+
+                if(io == rows.length)
+                {
+                    cb(id, hb_book);
+                }
+                io = io + 1;
+            })
+        });
+
+    });
+}
 
 
 function generateBooksTable(cb)
