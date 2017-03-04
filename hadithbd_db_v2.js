@@ -1,50 +1,61 @@
 var mysql      = require('mysql');
 var sqlite3 = require('sqlite3').verbose();
-const fs = require('fs');
+var fs = require('fs');
+var util = require('util');
 const chalk = require('chalk');
+var MySqlConn;
 
 console.log('Initiated');
 
-//var book_info = new sqlite3.Database('output/book_info.tar');
 var striptags = require('striptags');
 var Entities = require('html-entities').XmlEntities;
 entities = new Entities();
 
-var MySqlConn = mysql.createConnection({
-    host     : 'localhost',
-    user     : 'root',
-    password : '',
-    database : 'hadithbd'
-});
-
-MySqlConn.connect();
-
-/*var cl_arguments = process.argv.slice(2);
+var cl_arguments = process.argv.slice(2);
 
 console.log('Argument Received '+cl_arguments[0]);
 
-switch (cl_arguments[0]) {
-    case '--gen_books':
-        console.log('Canvas');
-        generateBooksTable();
+switch (cl_arguments[0].toString())
+{
+    case "--gen_books":
+        connectMySql(function () {
+            generateBooksTable(function(book_info, log_file) {
+                generateBooksCategoryTable(book_info, log_file, function () {
+                    console.log("XX Job Done XX");
+                    book_info.close();
+                    MySqlConn.end();
+                })
+            });
+        });
         break;
-    case '--gen_book_categories':
-        text = "Today is Sunday";
+    case "--gen_hb_book":
+        connectMySql(function(){
+            singleBookDb_hb_section(1, function(book_id, hb_book)
+            {
+                hb_book.close();
+                MySqlConn.end();
+            });
+        });
         break;
-    case '--help':
-    case '-h':
+    case "--help":
+    case "-h":
     default:
         showHelp();
-}*/
+}
 
-/*generateBooksTable(function()
+function connectMySql(cb)
 {
-    generateBooksCategoryTable(function()
-    {
-        book_info.close();
-        MySqlConn.end();
-    })
-});*/
+    MySqlConn = mysql.createConnection({
+        host     : 'localhost',
+        user     : 'root',
+        password : '',
+        database : 'hadithbd'
+    });
+
+    MySqlConn.connect(function(){
+        cb();
+    });
+}
 
 /*singleBookDb_hb_section(1, function(book_id, hb_book)
 {
@@ -63,11 +74,7 @@ switch (cl_arguments[0]) {
     });
 })*/
 
-singleBookDb_hb_content(1, function(book_id, hb_book)
-{
-    hb_book.close();
-    MySqlConn.end();
-})
+
 
 function singleBookDb_hb_section(id, cb)
 {
@@ -232,6 +239,11 @@ function singleBookDb_hb_content(id, cb)
 
 function generateBooksTable(cb)
 {
+    var book_info = new sqlite3.Database('output/book_info.tar');
+    var log_file = fs.createWriteStream(__dirname + '/output/import.sql', {flags : 'w'});
+
+    var si = "";
+
     book_info.serialize(function(){
 
         book_info.run('CREATE TABLE IF NOT EXISTS "android_metadata" ("locale" TEXT);INSERT INTO android_metadata VALUES("en_US");');
@@ -239,27 +251,40 @@ function generateBooksTable(cb)
         book_info.run('INSERT INTO android_metadata VALUES("en_US");');
 
         book_info.run('DROP TABLE IF EXISTS `books`;');
+        log_file.write('DROP TABLE IF EXISTS `books`;')
 
-        book_info.run("CREATE TABLE 'books' ( 'id' INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 'hadithbd_id' INTEGER, 'book_name' TEXT, 'book_type' TEXT, 'book_version' TEXT, 'book_category_id' INTEGER, 'meta_data' TEXT, 'sort_priority' INTEGER, 'download_status' INTEGER );");
+        si = "CREATE TABLE 'books' ( 'id' INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, 'hadithbd_id' INTEGER, 'book_name' TEXT, 'book_type' TEXT, 'device_book_version' TEXT, 'server_book_version' TEXT, 'book_category_id' INTEGER, 'meta_data' TEXT, 'sort_priority' INTEGER, 'download_status' INTEGER );";
 
-        book_info.run('DROP TABLE IF EXISTS ob_categories;');
+        book_info.run(si);
+        log_file.write(si);
 
-        book_info.run('CREATE TABLE ob_categories ("id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "name" TEXT);');
+        si = "DROP TABLE IF EXISTS ob_categories;";
 
-        MySqlConn.query("SELECT hadithbook.BookID AS hadithbd_id, hadithbook.BookNameBD AS book_name, 'hb' AS book_type, '1' AS book_version, '0' AS book_category_id, CONCAT( '{hadithsource_info:{bangla:"+'"'+"', ( HTML_Encode ( IFNULL(( SELECT hadithsource.SourceNameBD FROM hadithsource WHERE hadithsource.SourceID = hadithbook.PubID ), "+'"'+""+'"'+" ))), '"+'"'+", english:"+'"'+"', ( HTML_Encode ( IFNULL(( SELECT hadithsource.SourceNameEN FROM hadithsource WHERE hadithsource.SourceID = hadithbook.PubID ), "+'"'+""+'"'+" ))), '"+'"'+"}', ', no_of_sections:', ( IFNULL(( SELECT COUNT(*) AS total FROM hadithsection WHERE hadithsection.BookID = hadithbook.BookID ), 0 )), ', no_of_hadith:', ( IFNULL(( SELECT COUNT(*) AS total FROM hadithmain WHERE hadithmain.BookID = hadithbook.BookID ), 0 )), '}' ) AS meta_data, hadithbook.priority AS sort_priority, '0' AS download_status FROM hadithbook WHERE hadithbook.Active = 1 UNION ALL SELECT books_name.bookID AS hadithbd_id, books_name.Book_nameBD AS book_name, 'ob' AS book_type, '1' AS book_version, booktype AS book_category_id, CONCAT( '{writer_name:"+'"'+"', HTML_Encode ( IFNULL(( SELECT book_writter.writter_nameBN FROM book_writter WHERE book_writter.wrID = books_name.writterID ), "+'"'+""+'"'+" )), '"+'"'+", no_of_section:', ( HTML_Encode ( IFNULL(( SELECT COUNT(*) FROM book_section WHERE book_section.BookID = books_name.bookID ), "+'"'+""+'"'+" ))), ', no_of_content:', ( HTML_Encode ( IFNULL(( SELECT COUNT(*) FROM books_content WHERE books_content.bookID = books_name.bookID ), "+'"'+""+'"'+" ))), '}' ) AS meta_data, 0 AS sort_priority, '0' AS download_status FROM books_name WHERE books_name.Active = 1", function(err, rows, fields1) {
+        book_info.run(si);
+        log_file.write(si);
+
+        si = 'CREATE TABLE ob_categories ("id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "name" TEXT);';
+
+        book_info.run(si);
+        log_file.write(si);
+
+        MySqlConn.query("SELECT hadithbook.BookID AS hadithbd_id, hadithbook.BookNameBD AS book_name, 'hb' AS book_type, '1' AS book_version, '0' AS book_category_id, CONCAT( '{hadithsource_info:{bangla:"+'"'+"', ( HTML_Encode ( IFNULL(( SELECT hadithsource.SourceNameBD FROM hadithsource WHERE hadithsource.SourceID = hadithbook.PubID ), "+'"'+""+'"'+" ))), '"+'"'+", english:"+'"'+"', ( HTML_Encode ( IFNULL(( SELECT hadithsource.SourceNameEN FROM hadithsource WHERE hadithsource.SourceID = hadithbook.PubID ), "+'"'+""+'"'+" ))), '"+'"'+"}', ', no_of_sections:', ( IFNULL(( SELECT COUNT(*) AS total FROM hadithsection WHERE hadithsection.BookID = hadithbook.BookID ), 0 )), ', no_of_hadith:', ( IFNULL(( SELECT COUNT(*) AS total FROM hadithmain WHERE hadithmain.BookID = hadithbook.BookID ), 0 )), '}' ) AS meta_data, hadithbook.priority AS sort_priority, '0' AS download_status FROM hadithbook WHERE hadithbook.Active = 1 UNION ALL SELECT books_name.bookID AS hadithbd_id, books_name.Book_nameBD AS book_name, 'ob' AS book_type, '1.00' AS book_version, booktype AS book_category_id, CONCAT( '{writer_name:"+'"'+"', HTML_Encode ( IFNULL(( SELECT book_writter.writter_nameBN FROM book_writter WHERE book_writter.wrID = books_name.writterID ), "+'"'+""+'"'+" )), '"+'"'+", no_of_section:', ( HTML_Encode ( IFNULL(( SELECT COUNT(*) FROM book_section WHERE book_section.BookID = books_name.bookID ), "+'"'+""+'"'+" ))), ', no_of_content:', ( HTML_Encode ( IFNULL(( SELECT COUNT(*) FROM books_content WHERE books_content.bookID = books_name.bookID ), "+'"'+""+'"'+" ))), '}' ) AS meta_data, 0 AS sort_priority, '0' AS download_status FROM books_name WHERE books_name.Active = 1", function(err, rows, fields1) {
             if (err) throw err;
 
             var io = 1;
 
             rows.forEach(function(row){
 
-                book_info.run("INSERT INTO books (`hadithbd_id`, `book_name`, `book_type`, `book_version`, `book_category_id`, `meta_data`, `sort_priority`, `download_status`) VALUES ('"+row.hadithbd_id+"', '"+row.book_name+"', '"+row.book_type+"', '"+row.book_version+"', '"+row.book_category_id+"', '"+row.meta_data+"', '"+row.sort_priority+"', '"+row.download_status+"')");
+                si = "INSERT INTO books (`hadithbd_id`, `book_name`, `book_type`, `device_book_version`, `server_book_version`, `book_category_id`, `meta_data`, `sort_priority`, `download_status`) VALUES ('"+row.hadithbd_id+"', '"+row.book_name+"', '"+row.book_type+"', '"+row.book_version+"', '"+row.book_version+"', '"+row.book_category_id+"', '"+row.meta_data+"', '"+row.sort_priority+"', '"+row.download_status+"');";
+
+                book_info.run(si);
+                log_file.write(si);
 
                 console.log(io+" < books table for  > "+rows.length)
 
                 if(io == rows.length)
                 {
-                    cb();
+                    cb(book_info, log_file);
                 }
                 io = io + 1;
             })
@@ -267,7 +292,7 @@ function generateBooksTable(cb)
     })
 }
 
-function generateBooksCategoryTable(cb)
+function generateBooksCategoryTable(book_info, log_file, cb)
 {
     book_info.serialize(function() {
 
@@ -278,7 +303,9 @@ function generateBooksCategoryTable(cb)
 
             rows.forEach(function(row){
 
-                book_info.run("INSERT INTO ob_categories (id, name) VALUES ('"+row.id+"', '"+striptags(entities.encode(row.name+""))+"');");
+                si = "INSERT INTO ob_categories (id, name) VALUES ('"+row.id+"', '"+striptags(entities.encode(row.name+""))+"');";
+                book_info.run(si);
+                log_file.write(si);
 
                 console.log(io+" < books_type table for  > "+rows.length)
 
