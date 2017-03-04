@@ -263,7 +263,7 @@ function generateBooksTable(cb)
         book_info.run(si);
         log_file.write(si);
 
-        si = 'CREATE TABLE ob_categories ("id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "name" TEXT);';
+        si = 'CREATE TABLE ob_categories ("id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "name" TEXT, "total_books" INTEGER, "books_downloaded" INTEGER);';
 
         book_info.run(si);
         log_file.write(si);
@@ -296,14 +296,14 @@ function generateBooksCategoryTable(book_info, log_file, cb)
 {
     book_info.serialize(function() {
 
-        MySqlConn.query("SELECT books_type.btypeID as id, books_type.bookCat as name FROM books_type", function(err, rows, fields1) {
+        MySqlConn.query("SELECT books_type.btypeID as id, books_type.bookCat as name, IFNULL(( SELECT COUNT(*) AS total FROM books_name WHERE books_name.booktype = books_type.btypeID ), 0 ) as total_books, 0 AS books_downloaded FROM books_type", function(err, rows, fields1) {
             if (err) throw err;
 
             var io = 1;
 
             rows.forEach(function(row){
 
-                si = "INSERT INTO ob_categories (id, name) VALUES ('"+row.id+"', '"+striptags(entities.encode(row.name+""))+"');";
+                si = "INSERT INTO ob_categories (id, name, total_books, books_downloaded) VALUES ('"+row.id+"', '"+striptags(entities.encode(row.name+""))+"', "+row.total_books+", "+row.books_downloaded+");";
                 book_info.run(si);
                 log_file.write(si);
 
