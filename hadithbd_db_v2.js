@@ -263,12 +263,12 @@ function generateBooksTable(cb)
         book_info.run(si);
         log_file.write(si);
 
-        si = 'CREATE TABLE ob_categories ("id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "name" TEXT, "total_books" INTEGER, "books_downloaded" INTEGER);';
+        si = 'CREATE TABLE ob_categories ("id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "name" TEXT, "total_books" INTEGER);';
 
         book_info.run(si);
         log_file.write(si);
 
-        MySqlConn.query("SELECT hadithbook.BookID AS hadithbd_id, hadithbook.BookNameBD AS book_name, 'hb' AS book_type, '1' AS book_version, '0' AS book_category_id, CONCAT( '{hadithsource_info:{bangla:"+'"'+"', ( HTML_Encode ( IFNULL(( SELECT hadithsource.SourceNameBD FROM hadithsource WHERE hadithsource.SourceID = hadithbook.PubID ), "+'"'+""+'"'+" ))), '"+'"'+", english:"+'"'+"', ( HTML_Encode ( IFNULL(( SELECT hadithsource.SourceNameEN FROM hadithsource WHERE hadithsource.SourceID = hadithbook.PubID ), "+'"'+""+'"'+" ))), '"+'"'+"}', ', no_of_sections:', ( IFNULL(( SELECT COUNT(*) AS total FROM hadithsection WHERE hadithsection.BookID = hadithbook.BookID ), 0 )), ', no_of_hadith:', ( IFNULL(( SELECT COUNT(*) AS total FROM hadithmain WHERE hadithmain.BookID = hadithbook.BookID ), 0 )), '}' ) AS meta_data, hadithbook.priority AS sort_priority, '0' AS download_status FROM hadithbook WHERE hadithbook.Active = 1 UNION ALL SELECT books_name.bookID AS hadithbd_id, books_name.Book_nameBD AS book_name, 'ob' AS book_type, '1.00' AS book_version, booktype AS book_category_id, CONCAT( '{writer_name:"+'"'+"', HTML_Encode ( IFNULL(( SELECT book_writter.writter_nameBN FROM book_writter WHERE book_writter.wrID = books_name.writterID ), "+'"'+""+'"'+" )), '"+'"'+", no_of_section:', ( HTML_Encode ( IFNULL(( SELECT COUNT(*) FROM book_section WHERE book_section.BookID = books_name.bookID ), "+'"'+""+'"'+" ))), ', no_of_content:', ( HTML_Encode ( IFNULL(( SELECT COUNT(*) FROM books_content WHERE books_content.bookID = books_name.bookID ), "+'"'+""+'"'+" ))), '}' ) AS meta_data, 0 AS sort_priority, '0' AS download_status FROM books_name WHERE books_name.Active = 1", function(err, rows, fields1) {
+        MySqlConn.query("SELECT hadithbook.BookID AS hadithbd_id, hadithbook.BookNameBD AS book_name, 'hb' AS book_type, '1' AS book_version, '0' AS book_category_id, CONCAT( '{hadithsource_info:{bangla:"+'"'+"', ( HTML_Encode ( IFNULL(( SELECT hadithsource.SourceNameBD FROM hadithsource WHERE hadithsource.SourceID = hadithbook.PubID ), "+'"'+""+'"'+" ))), '"+'"'+", english:"+'"'+"', ( HTML_Encode ( IFNULL(( SELECT hadithsource.SourceNameEN FROM hadithsource WHERE hadithsource.SourceID = hadithbook.PubID ), "+'"'+""+'"'+" ))), '"+'"'+"}', ', no_of_sections:', ( IFNULL(( SELECT COUNT(*) AS total FROM hadithsection WHERE hadithsection.BookID = hadithbook.BookID ), 0 )), ', no_of_hadith:', ( IFNULL(( SELECT COUNT(*) AS total FROM hadithmain WHERE hadithmain.BookID = hadithbook.BookID ), 0 )), '}' ) AS meta_data, hadithbook.priority AS sort_priority, '1' AS download_status FROM hadithbook WHERE hadithbook.Active = 1 UNION ALL SELECT books_name.bookID AS hadithbd_id, books_name.Book_nameBD AS book_name, 'ob' AS book_type, '1.00' AS book_version, booktype AS book_category_id, CONCAT( '{writer_name:"+'"'+"', HTML_Encode ( IFNULL(( SELECT book_writter.writter_nameBN FROM book_writter WHERE book_writter.wrID = books_name.writterID ), "+'"'+""+'"'+" )), '"+'"'+", no_of_section:', ( HTML_Encode ( IFNULL(( SELECT COUNT(*) FROM book_section WHERE book_section.BookID = books_name.bookID ), "+'"'+""+'"'+" ))), ', no_of_content:', ( HTML_Encode ( IFNULL(( SELECT COUNT(*) FROM books_content WHERE books_content.bookID = books_name.bookID ), "+'"'+""+'"'+" ))), '}' ) AS meta_data, 0 AS sort_priority, '1' AS download_status FROM books_name WHERE books_name.Active = 1", function(err, rows, fields1) {
             if (err) throw err;
 
             var io = 1;
@@ -296,14 +296,14 @@ function generateBooksCategoryTable(book_info, log_file, cb)
 {
     book_info.serialize(function() {
 
-        MySqlConn.query("SELECT books_type.btypeID as id, books_type.bookCat as name, IFNULL(( SELECT COUNT(*) AS total FROM books_name WHERE books_name.booktype = books_type.btypeID ), 0 ) as total_books, 0 AS books_downloaded FROM books_type", function(err, rows, fields1) {
+        MySqlConn.query("SELECT books_type.btypeID as id, books_type.bookCat as name, IFNULL(( SELECT COUNT(*) AS total FROM books_name WHERE books_name.booktype = books_type.btypeID ), 0 ) as total_books FROM books_type", function(err, rows, fields1) {
             if (err) throw err;
 
             var io = 1;
 
             rows.forEach(function(row){
 
-                si = "INSERT INTO ob_categories (id, name, total_books, books_downloaded) VALUES ('"+row.id+"', '"+striptags(entities.encode(row.name+""))+"', "+row.total_books+", "+row.books_downloaded+");";
+                si = "INSERT INTO ob_categories (id, name, total_books) VALUES ('"+row.id+"', '"+striptags(entities.encode(row.name+""))+"', "+row.total_books+");";
                 book_info.run(si);
                 log_file.write(si);
 
